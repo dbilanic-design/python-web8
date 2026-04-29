@@ -1,0 +1,30 @@
+import pika
+from faker import Faker
+from models import Contact
+import json
+
+fake = Faker()
+
+connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
+channel = connection.channel()
+
+channel.queue_declare(queue="email_queue")
+channel.queue_declare(queue="sms_queue")
+
+for _ in range(10):
+    contact = Contact(
+        fullname=fake.name(),
+        email=fake.email(),
+        phone=fake.phone_number(),
+        preferred=fake.random_element(["email", "sms"])
+    ).save()
+
+    queue = "email_queue" if contact.preferred == "email" else "sms_queue"
+
+    channel.basic_publish(
+        exchange="",
+        routing_key=queue,
+        body=str(contact.id)
+    )
+
+connection.close()
