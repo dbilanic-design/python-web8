@@ -1,0 +1,22 @@
+import pika
+from models import Contact
+
+def send_email(contact):
+    print(f"Email sent to {contact.email}")
+
+def callback(ch, method, properties, body):
+    contact = Contact.objects(id=body.decode()).first()
+
+    send_email(contact)
+    contact.sent = True
+    contact.save()
+
+connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
+channel = connection.channel()
+
+channel.queue_declare(queue="email_queue")
+
+channel.basic_consume(queue="email_queue", on_message_callback=callback, auto_ack=True)
+
+print("Waiting for email messages...")
+channel.start_consuming()
